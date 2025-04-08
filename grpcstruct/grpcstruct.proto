@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package grpcstruct;
+
+option go_package = "../grpcstruct";
+
+service MailTemplate {
+  rpc Send(MailTemplateRequest) returns (MailTemplateResponse);
+}
+
+message MailTemplateRequest {
+  string template_group = 1;
+  string template_name = 2;
+  repeated string to = 3;
+  bytes data_json = 4;
+}
+
+message MailTemplateResponse {
+  bool ok = 1;
+}
