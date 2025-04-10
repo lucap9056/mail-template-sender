@@ -1,9 +1,9 @@
-package api
+package grpclistener
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"net"
 
 	"github.com/lucap9056/mail-template-sender/grpcstruct"
@@ -23,19 +23,17 @@ type App struct {
 	cancel         context.CancelFunc
 }
 
-type Options struct {
-	CertFile string
-	KeyFile  string
-}
+func New(client *smtp.Client, templateGroups *template.TemplateGroups, tlsConfig *tls.Config) (*App, error) {
 
-func New(client *smtp.Client, templateGroups *template.TemplateGroups, options *Options) (*App, error) {
+	var server *grpc.Server
 
-	creds, err := credentials.NewServerTLSFromFile(options.CertFile, options.KeyFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load TLS credentials: %v", err)
+	if tlsConfig != nil {
+		creds := credentials.NewTLS(tlsConfig)
+		server = grpc.NewServer(grpc.Creds(creds))
+
+	} else {
+		server = grpc.NewServer()
 	}
-
-	server := grpc.NewServer(grpc.Creds(creds))
 
 	ctx, cancel := context.WithCancel(context.Background())
 

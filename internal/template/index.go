@@ -77,8 +77,6 @@ func (groups *TemplateGroups) readTemplates(name string) error {
 
 func (groups *TemplateGroups) ToText(group string, name string, from string, to []string, data any) ([]byte, error) {
 
-	var body bytes.Buffer
-
 	templates, exists := groups.templates[group]
 	if !exists {
 		return nil, fmt.Errorf("")
@@ -96,10 +94,14 @@ func (groups *TemplateGroups) ToText(group string, name string, from string, to 
 
 	}
 
+	var body bytes.Buffer
+
 	err := template.Execute(&body, data)
 	if err != nil {
 		return nil, fmt.Errorf("template execution error: %v", err)
 	}
+
+	content := bytes.TrimSpace(body.Bytes())
 
 	title, err := extractTitle(&body)
 	if err != nil {
@@ -115,7 +117,7 @@ Content-Type: text/html; charset="UTF-8";
 
 `, from, strings.Join(to, ", "), title)
 
-	return append([]byte(head), body.Bytes()...), nil
+	return append([]byte(head), content...), nil
 
 }
 

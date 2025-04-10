@@ -30,27 +30,27 @@ func New(target string, opts ...grpc.DialOption) (*Client, error) {
 	return client, nil
 }
 
-type MailTemplateOptions struct {
-	templateGroup string
-	templateName  string
-	targets       []string
-	data          any
+type MailTemplateOptions[T any] struct {
+	TemplateGroup string
+	TemplateName  string
+	Targets       []string
+	Data          T
 }
 
-func (c *Client) Send(ctx context.Context, options *MailTemplateOptions) error {
+func (c *Client) Send(ctx context.Context, options *MailTemplateOptions[any]) error {
 
-	dataJson, err := json.Marshal(options.data)
+	dataJson, err := json.Marshal(options.Data)
 	if err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
 	req := &grpcstruct.MailTemplateRequest{
-		TemplateGroup: options.templateGroup,
-		TemplateName:  options.templateName,
-		To:            options.targets,
+		TemplateGroup: options.TemplateGroup,
+		TemplateName:  options.TemplateName,
+		To:            options.Targets,
 		DataJson:      dataJson,
 	}
 
