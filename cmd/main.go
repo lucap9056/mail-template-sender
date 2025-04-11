@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lucap9056/go-lifecycle/lifecycle"
 	"github.com/lucap9056/mail-template-sender/internal/grpclistener"
 	"github.com/lucap9056/mail-template-sender/internal/httplistener"
-	"github.com/lucap9056/mail-template-sender/internal/lifecycle"
 	"github.com/lucap9056/mail-template-sender/internal/smtp"
 	"github.com/lucap9056/mail-template-sender/internal/template"
 )
@@ -94,8 +94,7 @@ func main() {
 		log.Printf("Using templates path: %s\n", env.templatesPath)
 	}
 
-	log.Println("Initializing shutdown lifecycle handler...")
-	shutdown := lifecycle.New()
+	life := lifecycle.New()
 
 	log.Println("Loading templates...")
 	templates, err := template.New(env.templatesPath)
@@ -136,8 +135,7 @@ func main() {
 			log.Printf("Starting gRPC listener on %s...\n", env.grpcAddr)
 			err := app.Run(env.grpcAddr)
 			if err != nil {
-				log.Printf("gRPC listener exited with error: %s\n", err.Error())
-				shutdown.Shutdown(err.Error())
+				life.Exitf("gRPC listener exited with error: %s\n", err.Error())
 			}
 		}()
 
@@ -162,8 +160,7 @@ func main() {
 
 				err := app.Run(env.httpAddr, tlsConfig)
 				if err != nil {
-					log.Printf("HTTPS listener exited with error: %s\n", err.Error())
-					shutdown.Shutdown(err.Error())
+					life.Exitf("HTTPS listener exited with error: %s\n", err.Error())
 				}
 
 			} else {
@@ -176,8 +173,7 @@ func main() {
 
 				err := app.Run(env.httpAddr, nil)
 				if err != nil {
-					log.Printf("HTTP listener exited with error: %s\n", err.Error())
-					shutdown.Shutdown(err.Error())
+					life.Exitf("HTTP listener exited with error: %s\n", err.Error())
 				}
 
 			}
@@ -187,11 +183,7 @@ func main() {
 	}
 
 	log.Println("Waiting for shutdown signal...")
-	shutdown.Wait()
-
-	log.Println("Shutdown signal received. Cleaning up...")
-
-	time.Sleep(2 * time.Second)
+	life.Wait(2 * time.Second)
 
 	log.Println("Service stopped.")
 }
