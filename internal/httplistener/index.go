@@ -53,7 +53,7 @@ func (app *App) Handler(c *gin.Context) {
 
 	msg, err := app.templateGroups.ToText(
 		body.TemplateGroup,
-		body.TemplateName,
+		body.TemplateNames,
 		app.client.Username(),
 		body.Targets,
 		body.Data,

@@ -10,7 +10,7 @@ service MailTemplate {
 
 message MailTemplateRequest {
   string template_group = 1;
-  string template_name = 2;
+  repeated string template_names = 2;
   repeated string to = 3;
   bytes data_json = 4;
 }

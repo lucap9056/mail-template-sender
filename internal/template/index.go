@@ -75,37 +75,38 @@ func (groups *TemplateGroups) readTemplates(name string) error {
 	return nil
 }
 
-func (groups *TemplateGroups) ToText(group string, name string, from string, to []string, data any) ([]byte, error) {
+func (groups *TemplateGroups) ToText(group string, names []string, from string, to []string, data any) ([]byte, error) {
 
 	templates, exists := groups.templates[group]
 	if !exists {
-		return nil, fmt.Errorf("")
+		return nil, fmt.Errorf("template group not found: %s", group)
 	}
 
-	template := templates.Lookup(name)
+	var tmpl *template.Template
 
-	if template == nil {
-
-		if template = templates.Lookup("default"); template != nil {
-			name = "default"
-		} else {
-			return nil, fmt.Errorf("template not found: %s", name)
+	for _, name := range append(names, "default") {
+		tmpl = templates.Lookup(name)
+		if tmpl != nil {
+			break
 		}
+	}
 
+	if tmpl == nil {
+		return nil, fmt.Errorf("template not found: %s in group %s", names, group)
 	}
 
 	var body bytes.Buffer
 
-	err := template.Execute(&body, data)
+	err := tmpl.Execute(&body, data)
 	if err != nil {
-		return nil, fmt.Errorf("template execution error: %v", err)
+		return nil, fmt.Errorf("template execution error for %s in group %s: %v", tmpl.Name(), group, err)
 	}
 
 	content := bytes.TrimSpace(body.Bytes())
 
 	title, err := extractTitle(&body)
 	if err != nil {
-		return nil, fmt.Errorf("template %s title not found: %v", name, err)
+		return nil, fmt.Errorf("template %s in group %s title not found: %v", tmpl.Name(), group, err)
 	}
 
 	head := fmt.Sprintf(`From: %s

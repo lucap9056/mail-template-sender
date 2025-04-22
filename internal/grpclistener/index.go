@@ -63,7 +63,7 @@ func (app *App) Send(ctx context.Context, req *grpcstruct.MailTemplateRequest) (
 		return res, err
 	}
 
-	msg, err := app.templateGroups.ToText(req.TemplateGroup, req.TemplateName, app.client.Username(), req.To, data)
+	msg, err := app.templateGroups.ToText(req.TemplateGroup, req.TemplateNames, app.client.Username(), req.To, data)
 	if err != nil {
 		return res, err
 	}

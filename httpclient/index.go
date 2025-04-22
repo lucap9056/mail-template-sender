@@ -31,7 +31,7 @@ func New(target string, tlsConfig *tls.Config) *Client {
 
 type MailTemplateOptions[T any] struct {
 	TemplateGroup string   `json:"template_group"`
-	TemplateName  string   `json:"template_name"`
+	TemplateNames []string `json:"template_name"`
 	Targets       []string `json:"targets"`
 	Data          T        `json:"data"`
 }
