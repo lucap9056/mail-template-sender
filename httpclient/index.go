@@ -20,9 +20,13 @@ func New(target string, tlsConfig *tls.Config) *Client {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
-			DisableKeepAlives:   true,
-			MaxIdleConnsPerHost: -1,
-			TLSClientConfig:     tlsConfig,
+			MaxIdleConns:          10,
+			MaxIdleConnsPerHost:   5,
+			IdleConnTimeout:       30 * time.Second,
+			DisableKeepAlives:     false,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			TLSClientConfig:       tlsConfig,
 		},
 	}
 
@@ -42,7 +46,7 @@ func (c *Client) Send(ctx context.Context, options *MailTemplateOptions[any]) er
 		return fmt.Errorf("failed to marshal options: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.target+"?", bytes.NewReader(msg))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.target, bytes.NewReader(msg))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}

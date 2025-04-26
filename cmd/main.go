@@ -17,21 +17,20 @@ import (
 )
 
 type ENV struct {
-	username      string
-	password      string
-	host          string
-	port          string
-	templatesPath string
-	caCertPath    string
-	tlsCertPath   string
-	tlsKeyPath    string
-	listeners     map[string]struct{}
-	grpcAddr      string
-	httpAddr      string
+	SMTP_USERNAME               string
+	SMTP_PASSWORD               string
+	SMTP_SERVER_ADDRESS         string
+	EMAIL_TEMPLATES_DIRECTORY   string
+	TLS_CA_CERTIFICATE_PATH     string
+	TLS_SERVER_CERTIFICATE_PATH string
+	TLS_SERVER_KEY_PATH         string
+	ENABLED_LISTENERS           map[string]struct{}
+	GRPC_LISTENER_ADDRESS       string
+	HTTP_LISTENER_ADDRESS       string
 }
 
-func getEnabledListeners() map[string]struct{} {
-	listeners := strings.ToLower(os.Getenv("LISTENERS"))
+func getEnabledListeners(enabledListeners string) map[string]struct{} {
+	listeners := strings.ToLower(enabledListeners)
 	listenerMap := make(map[string]struct{})
 
 	if listeners == "" {
@@ -59,26 +58,25 @@ func main() {
 	log.Println("Starting mail-template-sender service...")
 
 	env := &ENV{
-		username:      os.Getenv("SMTP_USERNAME"),
-		password:      os.Getenv("SMTP_PASSWORD"),
-		host:          os.Getenv("SMTP_HOST"),
-		port:          os.Getenv("SMTP_PORT"),
-		templatesPath: os.Getenv("TEMPLATES_PATH"),
-		caCertPath:    os.Getenv("CA_CERT_PATH"),
-		tlsCertPath:   os.Getenv("TLS_CERT_PATH"),
-		tlsKeyPath:    os.Getenv("TLS_KEY_PATH"),
-		listeners:     getEnabledListeners(),
-		grpcAddr:      os.Getenv("GRPC_ADDR"),
-		httpAddr:      os.Getenv("HTTP_ADDR"),
+		SMTP_USERNAME:               os.Getenv("SMTP_USERNAME"),
+		SMTP_PASSWORD:               os.Getenv("SMTP_PASSWORD"),
+		SMTP_SERVER_ADDRESS:         os.Getenv("SMTP_SERVER_ADDRESS"),
+		EMAIL_TEMPLATES_DIRECTORY:   os.Getenv("EMAIL_TEMPLATES_DIRECTORY"),
+		TLS_CA_CERTIFICATE_PATH:     os.Getenv("TLS_CA_CERTIFICATE_PATH"),
+		TLS_SERVER_CERTIFICATE_PATH: os.Getenv("TLS_SERVER_CERTIFICATE_PATH"),
+		TLS_SERVER_KEY_PATH:         os.Getenv("TLS_SERVER_KEY_PATH"),
+		ENABLED_LISTENERS:           getEnabledListeners(os.Getenv("ENABLED_LISTENERS")),
+		GRPC_LISTENER_ADDRESS:       os.Getenv("GRPC_LISTENER_ADDRESS"),
+		HTTP_LISTENER_ADDRESS:       os.Getenv("HTTP_LISTENER_ADDRESS"),
 	}
 
 	var tlsConfig *tls.Config
 
-	if isTLSConfigured(env.tlsCertPath, env.tlsKeyPath) {
+	if isTLSConfigured(env.TLS_SERVER_CERTIFICATE_PATH, env.TLS_SERVER_KEY_PATH) {
 		config, err := readTLSConfig(
-			env.caCertPath,
-			env.tlsCertPath,
-			env.tlsKeyPath,
+			env.TLS_CA_CERTIFICATE_PATH,
+			env.TLS_SERVER_CERTIFICATE_PATH,
+			env.TLS_SERVER_KEY_PATH,
 		)
 
 		if err != nil {
@@ -87,28 +85,26 @@ func main() {
 		tlsConfig = config
 	}
 
-	if env.templatesPath == "" {
-		env.templatesPath = "./templates"
-		log.Printf("TEMPLATES_PATH not set. Using default: %s\n", env.templatesPath)
+	if env.EMAIL_TEMPLATES_DIRECTORY == "" {
+		env.EMAIL_TEMPLATES_DIRECTORY = "./templates"
+		log.Printf("TEMPLATES_PATH not set. Using default: %s\n", env.EMAIL_TEMPLATES_DIRECTORY)
 	} else {
-		log.Printf("Using templates path: %s\n", env.templatesPath)
+		log.Printf("Using templates path: %s\n", env.EMAIL_TEMPLATES_DIRECTORY)
 	}
 
 	life := lifecycle.New()
 
 	log.Println("Loading templates...")
-	templates, err := template.New(env.templatesPath)
+	templates, err := template.New(env.EMAIL_TEMPLATES_DIRECTORY)
 	if err != nil {
 		log.Fatalf("Failed to load templates: %s\n", err.Error())
 	}
 
 	log.Println("Setting up SMTP configuration...")
 	smtpConfig := &smtp.SMTPConfig{
-		Username: env.username,
-		Password: env.password,
-		Host:     env.host,
-		Port:     env.port,
-		Address:  fmt.Sprintf("%s:%s", env.host, env.port),
+		Username: env.SMTP_USERNAME,
+		Password: env.SMTP_PASSWORD,
+		Address:  env.SMTP_SERVER_ADDRESS,
 	}
 
 	log.Println("Initializing SMTP client...")
@@ -116,8 +112,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize SMTP client: %s\n", err.Error())
 	}
+	defer client.Close()
 
-	if _, ok := env.listeners["grpc"]; ok {
+	if _, ok := env.ENABLED_LISTENERS["grpc"]; ok {
 
 		log.Println("Creating gRPC listener service...")
 
@@ -128,12 +125,12 @@ func main() {
 		defer app.Stop()
 
 		go func() {
-			if env.grpcAddr == "" {
-				env.grpcAddr = ":50051"
+			if env.GRPC_LISTENER_ADDRESS == "" {
+				env.GRPC_LISTENER_ADDRESS = ":50051"
 			}
 
-			log.Printf("Starting gRPC listener on %s...\n", env.grpcAddr)
-			err := app.Run(env.grpcAddr)
+			log.Printf("Starting gRPC listener on %s...\n", env.GRPC_LISTENER_ADDRESS)
+			err := app.Run(env.GRPC_LISTENER_ADDRESS)
 			if err != nil {
 				life.Exitf("gRPC listener exited with error: %s\n", err.Error())
 			}
@@ -141,7 +138,7 @@ func main() {
 
 	}
 
-	if _, ok := env.listeners["http"]; ok {
+	if _, ok := env.ENABLED_LISTENERS["http"]; ok {
 
 		log.Println("Creating HTTPS listener service...")
 
@@ -152,26 +149,26 @@ func main() {
 
 			if tlsConfig != nil {
 
-				if env.httpAddr == "" {
-					env.httpAddr = ":443"
+				if env.HTTP_LISTENER_ADDRESS == "" {
+					env.HTTP_LISTENER_ADDRESS = ":443"
 				}
 
-				log.Printf("Starting HTTPS listener on %s...\n", env.httpAddr)
+				log.Printf("Starting HTTPS listener on %s...\n", env.HTTP_LISTENER_ADDRESS)
 
-				err := app.Run(env.httpAddr, tlsConfig)
+				err := app.Run(env.HTTP_LISTENER_ADDRESS, tlsConfig)
 				if err != nil {
 					life.Exitf("HTTPS listener exited with error: %s\n", err.Error())
 				}
 
 			} else {
 
-				if env.httpAddr == "" {
-					env.httpAddr = ":80"
+				if env.HTTP_LISTENER_ADDRESS == "" {
+					env.HTTP_LISTENER_ADDRESS = ":80"
 				}
 
-				log.Printf("Starting HTTP listener on %s...\n", env.httpAddr)
+				log.Printf("Starting HTTP listener on %s...\n", env.HTTP_LISTENER_ADDRESS)
 
-				err := app.Run(env.httpAddr, nil)
+				err := app.Run(env.HTTP_LISTENER_ADDRESS, nil)
 				if err != nil {
 					life.Exitf("HTTP listener exited with error: %s\n", err.Error())
 				}
@@ -200,7 +197,7 @@ func readTLSConfig(caPath string, certPath string, keyPath string) (*tls.Config,
 			Certificates: []tls.Certificate{cert},
 			ClientAuth:   tls.NoClientCert,
 		}
-		log.Println("Server: Enabled One-way TLS")
+
 		return config, nil
 	} else {
 
@@ -218,7 +215,6 @@ func readTLSConfig(caPath string, certPath string, keyPath string) (*tls.Config,
 			Certificates: []tls.Certificate{cert},
 			ClientAuth:   tls.RequireAndVerifyClientCert,
 		}
-		log.Println("Server: Enabled Mutual TLS")
 
 		return config, nil
 	}

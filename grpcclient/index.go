@@ -33,7 +33,7 @@ func New(target string, opts ...grpc.DialOption) (*Client, error) {
 type MailTemplateOptions[T any] struct {
 	TemplateGroup string
 	TemplateNames []string
-	Targets       []string
+	To            []string
 	Data          T
 }
 
@@ -50,7 +50,7 @@ func (c *Client) Send(ctx context.Context, options *MailTemplateOptions[any]) er
 	req := &grpcstruct.MailTemplateRequest{
 		TemplateGroup: options.TemplateGroup,
 		TemplateNames: options.TemplateNames,
-		To:            options.Targets,
+		To:            options.To,
 		DataJson:      dataJson,
 	}
 

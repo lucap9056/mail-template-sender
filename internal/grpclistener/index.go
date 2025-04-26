@@ -17,13 +17,13 @@ import (
 type App struct {
 	grpcstruct.UnimplementedMailTemplateServer
 	server         *grpc.Server
-	client         *smtp.Client
+	client         *smtp.SMTP
 	templateGroups *template.TemplateGroups
 	ctx            context.Context
 	cancel         context.CancelFunc
 }
 
-func New(client *smtp.Client, templateGroups *template.TemplateGroups, tlsConfig *tls.Config) (*App, error) {
+func New(client *smtp.SMTP, templateGroups *template.TemplateGroups, tlsConfig *tls.Config) (*App, error) {
 
 	var server *grpc.Server
 

@@ -14,14 +14,14 @@ import (
 )
 
 type App struct {
-	client         *smtp.Client
+	client         *smtp.SMTP
 	templateGroups *template.TemplateGroups
 	router         *gin.Engine
 	ctx            context.Context
 	cancel         context.CancelFunc
 }
 
-func New(client *smtp.Client, templateGroups *template.TemplateGroups) *App {
+func New(client *smtp.SMTP, templateGroups *template.TemplateGroups) *App {
 
 	router := gin.Default()
 
@@ -45,8 +45,7 @@ func (app *App) Handler(c *gin.Context) {
 	body := &httpclient.MailTemplateOptions[any]{}
 
 	if err := c.BindJSON(body); err != nil {
-		c.Writer.WriteHeader(http.StatusBadRequest)
-		c.Writer.WriteString(err.Error())
+		c.String(http.StatusBadRequest, err.Error())
 		log.Println(err.Error())
 		return
 	}
@@ -60,20 +59,18 @@ func (app *App) Handler(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.Writer.WriteHeader(http.StatusBadRequest)
-		c.Writer.WriteString(err.Error())
-		log.Println(err.Error())
+		c.String(http.StatusBadRequest, err.Error())
+		log.Println("to text error: ", err.Error())
 		return
 	}
 
 	if err := app.client.Send(body.Targets, msg); err != nil {
-		c.Writer.WriteHeader(http.StatusBadRequest)
-		c.Writer.WriteString(err.Error())
-		log.Println(err.Error())
+		c.String(http.StatusBadRequest, err.Error())
+		log.Println("smtp send error: ", err.Error())
 		return
 	}
 
-	c.Writer.WriteHeader(http.StatusOK)
+	c.String(http.StatusOK, "")
 }
 
 func (app *App) Run(addr string, tlsConfig *tls.Config) error {
